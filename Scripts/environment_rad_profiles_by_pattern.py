@@ -148,7 +148,7 @@ plot_var_pattern(var = var_vec[2], xlabel = 'Theta / K', xlim0 = 295, xlim1 = 35
 #          radiative profiles
 # ============================================================================= 
     
-#%% 
+#%% define function to pull data for one day
 def get_rad_data_one_day(day_str, all_profiles):
 
     profiles_oneday = all_profiles.sel(launch_time=day_str) 
@@ -200,7 +200,7 @@ day_str_sugar = '2020-02-09'
 rad_sugar = get_rad_data_one_day(day_str_sugar, all_profiles)
 
 
-#%% subplots
+#%% subplots for radiative cooling rates (SW, LW, net)
 
 def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
     
@@ -306,5 +306,5 @@ def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
     
 
-#%%
+#%% call function
 plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar)
