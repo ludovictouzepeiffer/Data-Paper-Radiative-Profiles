@@ -3,6 +3,7 @@
 #!/usr/bin/env python
 """
 # plot mixing ratio, theta, and LW / SW / net heating rates for four example days (one for each pattern)
+
 @author: annaleaalbright
 """
 import numpy as np
