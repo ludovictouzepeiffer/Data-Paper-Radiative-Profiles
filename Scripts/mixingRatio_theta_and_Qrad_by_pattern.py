@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
 #!/usr/bin/env python
-
+"""
+# plot mixing ratio, theta, and LW / SW / net heating rates for four example days (one for each pattern)
+@author: annaleaalbright
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 plt.rcParams.update({'font.size': 24})
 import os
-
-# Change to notebook view later to display figures
 
 #%% 
 # =============================================================================
@@ -93,62 +94,102 @@ xr_gravel = get_data_one_day(fp_dropsondes, day_str_gravel)
 day_str_sugar = '2020-02-09' 
 xr_sugar = get_data_one_day(fp_dropsondes, day_str_sugar)
 
-#%% function to make individual plots (turn into subplots)
+#%%
 
-def plot_var_pattern(var, xlabel, xlim0, xlim1):
+def plot_vars_together(xr_fish, xr_flower, xr_gravel, xr_sugar):
     
+    plt.rcParams.update({'font.size': 30})
+
+    fig, ax = plt.subplots(1,2,figsize=(15,10))
+    ax[0].set_ylabel('Altitude (km)')
+    ax[0].set_xlabel('Mixing ratio / g/kg')
+    ax[1].set_xlabel('Theta / K ')
+    Dates = ['fish: 2020-01-22', 'flower: 2020-02-02', 'gravel: 2020-02-05', 'sugar: 2020-02-09']
+    alpha_all = 0.05
+    var_vec = ["mixing_ratio", "theta"]
+
+
+    #xmin=-5
+    #xmax=5
+    ymin=0
+    ymax=10
+    for k in range(2):
+        #ax[k].grid(color='k', linestyle='-', linewidth=0.8)
+        ax[k].grid(True, alpha=0.7)
+        #ax[k].set_xlim([xmin,xmax]) 
+        ax[k].set_ylim([ymin,ymax]) 
+        ax[k].tick_params(direction='in', bottom=True, top=True, left=True, right=True,grid_alpha=0.6)
+        ax[k].spines['right'].set_visible(False)
+        ax[k].spines['top'].set_visible(False)
+        for axis in ['top','bottom','left','right']:
+              ax[k].spines[axis].set_linewidth(1.3)
+    
+
+    # mixing ratio
+    var = var_vec[0]
     var1 = xr_fish[var]
     var2 = xr_flower[var]
     var3 = xr_gravel[var]
     var4 = xr_sugar[var]
-    
-    Dates = ['fish: 2020-01-22', 'flower: 2020-02-02', 'gravel: 2020-02-05', 'sugar: 2020-02-09']
-    
-    alpha_all = 0.05
     km_vec = var4.alt.values / 1000
 
-    plt.figure(figsize=(10,12))
-    
-    for i in range(0, len(var1.launch_time)):
-        plt.plot(var1.isel(launch_time=i), km_vec,color="mediumslateblue", linewidth=2,alpha=alpha_all)
-    plt.plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='mediumslateblue', label= Dates[0])
-    
-    for i in range(0, len(var2.launch_time)):
-        plt.plot(var2.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all + 0.1)
-    plt.plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[1])
-    
-    for i in range(0, len(var3.launch_time)):
-        plt.plot(var3.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
-    plt.plot(var3.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    
-    for i in range(0, len(var4.launch_time)):
-        plt.plot(var4.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all+0.05)
-    plt.plot(var4.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
-    
-    
-    plt.gca().spines['right'].set_visible(False)
-    plt.gca().spines['top'].set_visible(False)
-    plt.xlabel(xlabel)
-    plt.ylabel('Altitude / m')
-    plt.ylim([0, 9])
-    #plt.xlim([0, 20])
-    plt.xlim([xlim0, xlim1])
-    plt.grid(True, alpha=0.6)
-    plt.legend(loc='best')
+        
+    for i in range(len(var1.launch_time)):
+        ax[0].plot(var1.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
+    ax[0].plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[0])
+    for i in range(len(var2.launch_time)):
+        ax[0].plot(var2.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all + 0.1)
+    ax[0].plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    for i in range(len(var3.launch_time)):
+        ax[0].plot(var3.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
+    ax[0].plot(var3.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    for i in range(len(var4.launch_time)):
+        ax[0].plot(var4.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all+0.05)
+    ax[0].plot(var4.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+    #ax[0].legend(loc='best')
 
+    
+    #ax[0].gca().spines['right'].set_visible(False)
+    #ax[0].gca().spines['top'].set_visible(False)
+
+    # theta
+    var = var_vec[1]
+    var1 = xr_fish[var]
+    var2 = xr_flower[var]
+    var3 = xr_gravel[var]
+    var4 = xr_sugar[var]
+    km_vec = var4.alt.values / 1000
+
+        
+    for i in range(len(var1.launch_time)):
+        ax[1].plot(var1.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
+    ax[1].plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[0])
+    for i in range(len(var2.launch_time)):
+        ax[1].plot(var2.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all + 0.1)
+    ax[1].plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    for i in range(len(var3.launch_time)):
+        ax[1].plot(var3.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
+    ax[1].plot(var3.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    for i in range(len(var4.launch_time)):
+        ax[1].plot(var4.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all+0.05)
+    ax[1].plot(var4.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+    #ax[1].legend(loc='best')
+    
+    ax[1].tick_params(labelleft=False)
+    
+    fig.tight_layout() 
+    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+    
 #%% call function
-var_vec = ["mixing_ratio", "temp", "theta"]
-plot_var_pattern(var = var_vec[0], xlabel = 'mixing ratio / g/kg', xlim0 = 0, xlim1 = 17)
-plot_var_pattern(var = var_vec[1], xlabel = 'Temperature / degC', xlim0 = -30, xlim1 = 30)
-plot_var_pattern(var = var_vec[2], xlabel = 'Theta / K', xlim0 = 295, xlim1 = 350)
 
+plot_vars_together(xr_fish, xr_flower, xr_gravel, xr_sugar)
 
 #%% 
 # =============================================================================
 #          radiative profiles
 # ============================================================================= 
     
-#%% define function to pull data for one day
+#%% 
 def get_rad_data_one_day(day_str, all_profiles):
 
     profiles_oneday = all_profiles.sel(launch_time=day_str) 
@@ -181,7 +222,6 @@ path_to_radiosonde_profiles = os.path.join(dir_profile, "rad_profiles_all_radios
 
 dropsonde_profiles = xr.open_dataset(path_to_dropsonde_profiles)
 radiosonde_profiles = xr.open_dataset(path_to_radiosonde_profiles)
-radiosonde_profiles = radiosonde_profiles.rename({'platform':'Platform'})
 all_profiles = xr.concat([dropsonde_profiles, radiosonde_profiles], dim="launch_time")
 
 #%% call function
@@ -200,11 +240,11 @@ day_str_sugar = '2020-02-09'
 rad_sugar = get_rad_data_one_day(day_str_sugar, all_profiles)
 
 
-#%% subplots for radiative cooling rates (SW, LW, net)
+#%% subplots
 
 def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
     
-    plt.rcParams.update({'font.size': 20})
+    plt.rcParams.update({'font.size': 30})
 
     fig, ax = plt.subplots(1,3,figsize=(20,10))
     ax[0].set_ylabel('Altitude (km)')  
@@ -245,18 +285,18 @@ def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
     km_vec = sugar_var.alt.values / 1000
 
     for i in range(0, len(fish_var.launch_time)):
-        ax[0].plot(fish_var.isel(launch_time=i), km_vec,color="mediumslateblue", linewidth=2,alpha=alpha_all)
-    ax[0].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='mediumslateblue', label= Dates[0])
+        ax[0].plot(fish_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
+    ax[0].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
     for i in range(0, len(flower_var.launch_time)):
-        ax[0].plot(flower_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
-    ax[0].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[1])
+        ax[0].plot(flower_var.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all)
+    ax[0].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
     for i in range(0, len(gravel_var.launch_time)):
         ax[0].plot(gravel_var.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
     ax[0].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
     for i in range(0, len(sugar_var.launch_time)):
         ax[0].plot(sugar_var.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all)
     ax[0].plot(sugar_var.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
-    ax[0].legend(loc='best')
+    #ax[0].legend(loc='best')
     # LW
     var = var_vec[1]
     fish_var = rad_fish[var]
@@ -264,12 +304,13 @@ def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
     gravel_var = rad_gravel[var]
     sugar_var = rad_sugar[var]
     
+    # fish mediumslateblue
     for i in range(len(fish_var.launch_time)):
-        ax[1].plot(fish_var.isel(launch_time=i), km_vec,color="mediumslateblue", linewidth=2,alpha=alpha_all)
-    ax[1].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='mediumslateblue', label= Dates[0])
+        ax[1].plot(fish_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
+    ax[1].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
     for i in range(len(flower_var.launch_time)):
-        ax[1].plot(flower_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
-    ax[1].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[1])
+        ax[1].plot(flower_var.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all)
+    ax[1].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
     for i in range(len(gravel_var.launch_time)):
         ax[1].plot(gravel_var.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
     ax[1].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
@@ -285,11 +326,11 @@ def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
     sugar_var = rad_sugar[var]
     
     for i in range(len(fish_var.launch_time)):
-        ax[2].plot(fish_var.isel(launch_time=i), km_vec,color="mediumslateblue", linewidth=2,alpha=alpha_all)
-    ax[2].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='mediumslateblue', label= Dates[0])
+        ax[2].plot(fish_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
+    ax[2].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
     for i in range(len(flower_var.launch_time)):
-        ax[2].plot(flower_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
-    ax[2].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[1])
+        ax[2].plot(flower_var.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all)
+    ax[2].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
     for i in range(len(gravel_var.launch_time)):
         ax[2].plot(gravel_var.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
     ax[2].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
@@ -306,5 +347,5 @@ def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
     
 
-#%% call function
+#%%
 plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar)
