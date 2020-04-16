@@ -38,71 +38,51 @@ all_profiles = xr.concat([dropsonde_profiles, radiosonde_profiles], dim="launch_
 #             PDF of sondes per hour, by platform
 # =============================================================================  
 
-def calc_pdf_sondes(dropsonde_profiles, radiosonde_profiles):
+def calc_pdf_sondes(profiles):
     
-    profiles = dropsonde_profiles
     # select coordinates
     data = profiles["q_rad"]  
-    data["q_rad_lw"] = profiles["q_rad_lw"]
-    data["q_rad_sw"] = profiles["q_rad_sw"]
     data["time"] = profiles["launch_time"]
     data = data.drop_vars(["lay","col", "play"])
     data = data.to_dataframe()
     data["time"] = data["time"].dt.tz_localize(pytz.UTC).dt.tz_convert('America/Barbados').dt.strftime("%H:%M")
     data["time"] = pd.to_datetime(data["time"], format="%H:%M")
-    
+
     data = data.reset_index()
     data = data.set_index(["time","zlay"])
-    data = data.groupby([pd.Grouper(freq='10min', level='time'), 
-                                 pd.Grouper(level='zlay')]).count()
-    
-    no_per_bin = data.groupby(['time']).mean()
-    count_vec_dropsondes = no_per_bin.launch_time.values
-    
+    data = data.groupby([pd.Grouper(freq='10min', level='time'), pd.Grouper(level='zlay')]).count()
+    data = data.groupby(["time"]).mean()
+
     # get time
     data = data.to_xarray()
     time = data.time.values
-    dates_list_dropsondes = time
-    ##### 
     
-    profiles = radiosonde_profiles
-    # select coordinates
-    data = profiles["q_rad"]  
-    data["q_rad_lw"] = profiles["q_rad_lw"]
-    data["q_rad_sw"] = profiles["q_rad_sw"]
-    data["time"] = profiles["launch_time"]
-    data = data.drop_vars(["lay","col", "play"])
-    data = data.to_dataframe()
-    data["time"] = data["time"].dt.tz_localize(pytz.UTC).dt.tz_convert('America/Barbados').dt.strftime("%H:%M")
-    data["time"] = pd.to_datetime(data["time"], format="%H:%M")
-    
-    data = data.reset_index()
-    data = data.set_index(["time","zlay"])
-    data = data.groupby([pd.Grouper(freq='10min', level='time'), 
-                                 pd.Grouper(level='zlay')]).count()
-    
-    no_per_bin = data.groupby(['time']).mean()
-    count_vec_radiosondes = no_per_bin.launch_time.values
-    
-    # get time
-    data = data.to_xarray()
-    time = data.time.values
-    dates_list_radiosondes = time
-    ##### 
-    return dates_list_dropsondes, dates_list_radiosondes, count_vec_dropsondes, count_vec_radiosondes
+    ini = np.datetime64('1900-01-01 00:00:00')
+    end = ini + np.timedelta64(24,'h')
+    count_time = np.arange(ini, end, np.timedelta64(10, 'm'))
+    count = np.zeros(len(count_time))
+
+    array = {'count_time': count_time, 'count': count}
+    array = pd.DataFrame(data=array)
+    array = array.set_index(["count_time"])
+
+    for itime in time:
+        array.loc[itime, "count"] = data["q_rad"].sel(time=itime).values
+       
+    return count_time, array["count"].values
    
-    
-    
-#%% call function
-dates_list_dropsondes, dates_list_radiosondes, count_vec_dropsondes, count_vec_radiosondes = calc_pdf_sondes(dropsonde_profiles, radiosonde_profiles)
+time, count_vec_dropsondes = calc_pdf_sondes(dropsonde_profiles)
+time, count_vec_radiosondes = calc_pdf_sondes(radiosonde_profiles)
+
 
 #%% try out different plots
 
 # ordinary line plot (not ideal)
+
 fig = plt.figure(figsize=(12,10))
 ax = fig.add_subplot(1, 1, 1) 
-ax.plot(dates_list_dropsondes, count_vec_dropsondes, linewidth=4, color='crimson', alpha =1, label="dropsondes (1140 total)")  
-ax.plot(dates_list_radiosondes, count_vec_radiosondes, linewidth=2, color='royalblue', alpha = 0.8, label="radiosondes (1177 total)")  
+ax.plot(time, count_vec_dropsondes, linewidth=4, color='crimson', alpha =1, label="dropsondes (1140 total)")  
+ax.plot(time, count_vec_radiosondes, linewidth=2, color='royalblue', alpha = 0.8, label="radiosondes (1177 total)")  
 myFmt = mdates.DateFormatter("%-H")
 ax.xaxis.set_major_formatter(myFmt)
 ticks = ax.get_xticks()
