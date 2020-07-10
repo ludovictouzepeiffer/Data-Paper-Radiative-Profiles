@@ -5,7 +5,8 @@ Created on Mon Jul  6 12:36:38 2020
 
 @author: annaleaalbright
 
-# plot mixing ratio, theta, and LW / SW / net heating rates for four example days (one for each pattern)
+# plot mixing ratio, theta, and LW / SW / net radiative heating rates for four example days (one for each pattern)
+# and metric of spatial variance in radiative heating rates
 
 """
 
@@ -14,13 +15,14 @@ import matplotlib.pyplot as plt
 import xarray as xr
 plt.rcParams.update({'font.size': 24})
 import os
+import seaborn as sns
+sns.set(context='notebook', style='white', palette='deep', font='sans-serif', font_scale=3, color_codes=True, rc=None)
 
 #%% 
 # =============================================================================
-#            Functions
+#            pre-processing functions
 # =============================================================================  
 
-# choose only dropsondes in HALO circle
 def choose_HALO_circle(sondes): 
     HALO_sondes = sondes.where(sondes.Platform=='HALO')
     # HALO circle, source: http://eurec4a.eu/fileadmin/user_upload/eurec4a/documents/Flight-Planning-Coordinates.pdf
@@ -37,7 +39,6 @@ def choose_HALO_circle(sondes):
     print(nsondes_HALO_circle, "total sondes launched in HALO circle")
     return sondes_circle
 
-# select dropsonde data for one day with date string
 def get_data_one_day(fp_dropsondes, day_str):
     all_sondes = xr.open_dataset(fp_dropsondes)
     sondes_oneday = all_sondes.sel(launch_time=day_str) 
@@ -46,47 +47,45 @@ def get_data_one_day(fp_dropsondes, day_str):
     # remove sondes with large nunber of NaNs
     # threshold : require this many non-NA values
     sondes_circle = Sondes_Circle.dropna(dim="launch_time", \
-                                         subset=['alt','pres','u_wind','v_wind', 'wspd','lat','lon','mr', 
-                                         'theta', 'theta_e', 'theta_v', 'rh', 'T', 'dz', 'q', 'dp'], \
-                                         how='any', thresh=6_000) 
+                                         subset=['mr'], \
+                                         how='any', thresh=300) 
     
     nsondes_qc = len(sondes_circle.launch_time)
     print(nsondes_qc, "sondes after quality control on " + day_str)
 
     # =============================================================================
-    #          LOAD environmental data
+    #          load environmental data
     # ============================================================================= 
-    mixing_ratio = sondes_circle['mr'] / 1000
-    specific_humidity = (mixing_ratio / (1 + mixing_ratio)) * 1000
-    theta = sondes_circle['theta']
-    temp_K = sondes_circle['T'] + 273.15
-    RH = sondes_circle['rh']
-    pressure = sondes_circle['pres']
+
+    # convert mixing ratio in g/kg to kg/kg
+    if (sondes_circle['mr'].max().values > 10) : mixing_ratio  = sondes_circle['mr']  / 1000
+    kgtog = 1000
+    specific_humidity_g_kg = (mixing_ratio / (1 + mixing_ratio)) * kgtog 
+    CtoK = 273.15
+    temp_K = sondes_circle['T'] + CtoK
+    # convert RH to % units
+    RH  = sondes_circle['rh']
+    if (sondes_circle['rh'].max().values < 1) : RH  = sondes_circle['rh']  *100
     launch_time = sondes_circle['launch_time']
     alt_vec = sondes_circle['alt']
 
     # compress into xarray object    
     xr_day = xr.Dataset(
-            data_vars={'mixing_ratio':    (('launch_time', 'alt'), mixing_ratio),
-                       'specific_humidity': (('launch_time', 'alt'), specific_humidity),
-                       'theta':    (('launch_time', 'alt'), theta),
+            data_vars={'specific_humidity': (('launch_time', 'alt'), specific_humidity_g_kg),
                        'temp_K':    (('launch_time', 'alt'), temp_K),
-                       'RH':    (('launch_time', 'alt'), RH),
-                       'pressure':    (('launch_time', 'alt'), pressure)},
+                       'RH':    (('launch_time', 'alt'), RH),},
             coords={'launch_time': launch_time,
                     'alt': alt_vec})
     
     return xr_day
 
 #%%
-    
 # =============================================================================
-# Load sondes in HALO circle + pre-process
+# Load preprocessed environmental data in HALO circle 
 # =============================================================================  
 
 fp_dropsondes = '/Users/annaleaalbright/Dropbox/EUREC4A/Dropsondes/Data/all_sondes_w_cloud_flag.nc'
 
-# 22 Jan (fish), 2 Feb (flowers), 5 Feb (gravel) and 9 Feb (sugar). 
 day_str_fish = '2020-01-22' 
 xr_fish = get_data_one_day(fp_dropsondes, day_str_fish)
 
@@ -101,27 +100,27 @@ xr_sugar = get_data_one_day(fp_dropsondes, day_str_sugar)
 
 #%%
 
-def plot_vars_together(xr_fish, xr_flower, xr_gravel, xr_sugar):
+def plot_mean_environmental_profiles(xr_fish, xr_flower, xr_gravel, xr_sugar):
+    """ 
+    Plot mean temperature, specific humidity, and relative humidity for each day
     
-    plt.rcParams.update({'font.size': 30})
+    """
+    fig, ax = plt.subplots(1,3,figsize=(20,8))
 
-    fig, ax = plt.subplots(1,2,figsize=(15,10))
     ax[0].set_ylabel('Altitude (km)')
-    ax[0].set_xlabel('Specific humidity / g/kg')
-    ax[1].set_xlabel('Temperature / K ')
+    ax[0].set_xlabel('Temperature / K ')
+    ax[1].set_xlabel('Specific humidity / g/kg')
+    ax[2].set_xlabel('Relative humidity / %')
+    ax[1].set_title('Environmental means')
+
     Dates = ['fish: 2020-01-22', 'flower: 2020-02-02', 'gravel: 2020-02-05', 'sugar: 2020-02-09']
-    alpha_all = 0.05
-    var_vec = ["specific_humidity", "temp_K"]
+    var_vec = ["temp_K","specific_humidity", "RH"]
 
-
-    #xmin=-5
-    #xmax=5
     ymin=0
     ymax=10
-    for k in range(2):
+    for k in range(3):
         #ax[k].grid(color='k', linestyle='-', linewidth=0.8)
         ax[k].grid(True, alpha=0.7)
-        #ax[k].set_xlim([xmin,xmax]) 
         ax[k].set_ylim([ymin,ymax]) 
         ax[k].tick_params(direction='in', bottom=True, top=True, left=True, right=True,grid_alpha=0.6)
         ax[k].spines['right'].set_visible(False)
@@ -129,35 +128,25 @@ def plot_vars_together(xr_fish, xr_flower, xr_gravel, xr_sugar):
         for axis in ['top','bottom','left','right']:
               ax[k].spines[axis].set_linewidth(1.3)
     
-
-    # mixing ratio
+    # =============================================================================
+    #      temperature
+    # =============================================================================
     var = var_vec[0]
     var1 = xr_fish[var]
     var2 = xr_flower[var]
     var3 = xr_gravel[var]
     var4 = xr_sugar[var]
     km_vec = var4.alt.values / 1000
-
-        
-    for i in range(len(var1.launch_time)):
-        ax[0].plot(var1.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
+      
     ax[0].plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[0])
-    for i in range(len(var2.launch_time)):
-        ax[0].plot(var2.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all + 0.1)
     ax[0].plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='palevioletred', label= Dates[1])
-    for i in range(len(var3.launch_time)):
-        ax[0].plot(var3.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
     ax[0].plot(var3.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    for i in range(len(var4.launch_time)):
-        ax[0].plot(var4.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all+0.05)
     ax[0].plot(var4.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
-    #ax[0].legend(loc='best')
 
-    
-    #ax[0].gca().spines['right'].set_visible(False)
-    #ax[0].gca().spines['top'].set_visible(False)
 
-    # theta
+    # =============================================================================
+    #     specific humidity
+    # =============================================================================
     var = var_vec[1]
     var1 = xr_fish[var]
     var2 = xr_flower[var]
@@ -165,52 +154,60 @@ def plot_vars_together(xr_fish, xr_flower, xr_gravel, xr_sugar):
     var4 = xr_sugar[var]
     km_vec = var4.alt.values / 1000
 
-        
-    for i in range(len(var1.launch_time)):
-        ax[1].plot(var1.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
     ax[1].plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[0])
-    for i in range(len(var2.launch_time)):
-        ax[1].plot(var2.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all + 0.1)
     ax[1].plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='palevioletred', label= Dates[1])
-    for i in range(len(var3.launch_time)):
-        ax[1].plot(var3.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
     ax[1].plot(var3.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    for i in range(len(var4.launch_time)):
-        ax[1].plot(var4.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all+0.05)
     ax[1].plot(var4.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
-    #ax[1].legend(loc='best')
     
     ax[1].tick_params(labelleft=False)
     ax[0].set_ylim([0,9])
     ax[1].set_ylim([0,9])
-
     
+    # =============================================================================
+    #      relative humidity
+    # =============================================================================
+    var = var_vec[2]
+    var1 = xr_fish[var]
+    var2 = xr_flower[var]
+    var3 = xr_gravel[var]
+    var4 = xr_sugar[var]
+    km_vec = var4.alt.values / 1000
+
+    ax[2].plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[2].plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[2].plot(var3.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[2].plot(var4.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])    
+    ax[2].tick_params(labelleft=False)
+    ax[2].set_ylim([0,9])
+
     fig.tight_layout() 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
     
-#%% call function
+#%% call function to plot
 
-plot_vars_together(xr_fish, xr_flower, xr_gravel, xr_sugar)
+plot_mean_environmental_profiles(xr_fish, xr_flower, xr_gravel, xr_sugar)
 
 #%% 
 # =============================================================================
 #          radiative profiles
 # ============================================================================= 
     
-#%% 
+#%% pre-process
+
 def get_rad_data_one_day(day_str, all_profiles):
 
+    # only choose HALO sondes 
     profiles_oneday = all_profiles.sel(launch_time=day_str) 
-
+    HALO_profiles = profiles_oneday.where(profiles_oneday.platform=='HALO', drop=True)
     
     # =============================================================================
     #          LOAD data
     # ============================================================================= 
-    q_rad = profiles_oneday['q_rad']
-    q_rad_lw = profiles_oneday['q_rad_lw']
-    q_rad_sw = profiles_oneday['q_rad_sw']
-    launch_time = profiles_oneday['launch_time']
-    alt_vec = profiles_oneday['zlev'][:-1].values
+    q_rad = HALO_profiles['q_rad']
+    q_rad_lw = HALO_profiles['q_rad_lw']
+    q_rad_sw = HALO_profiles['q_rad_sw']
+    launch_time = HALO_profiles['launch_time']
+    alt_vec = HALO_profiles['zlev'][:-1].values
 
     # compress into xarray object    
     rad_day = xr.Dataset(
@@ -224,14 +221,6 @@ def get_rad_data_one_day(day_str, all_profiles):
 
 #%% load data
 
-#dir_profile = "/Users/annaleaalbright/Dropbox/EUREC4A/Dropsondes/Data/"
-#path_to_dropsonde_profiles = os.path.join(dir_profile,"rad_profiles_all_dropsondes.nc")
-#path_to_radiosonde_profiles = os.path.join(dir_profile, "rad_profiles_all_radiosondes.nc")
-#
-#dropsonde_profiles = xr.open_dataset(path_to_dropsonde_profiles)
-#radiosonde_profiles = xr.open_dataset(path_to_radiosonde_profiles)
-#all_profiles = xr.concat([dropsonde_profiles, radiosonde_profiles], dim="launch_time")
-
 # =============================================================================
 #             open files
 # =============================================================================  
@@ -241,7 +230,6 @@ all_profiles = xr.open_dataset(path_to_rad_profiles)
 
 #%% call function
 
-# 22 Jan (fish), 2 Feb (flower), 5 Feb (gravel) and 9 Feb (sugar). 
 day_str_fish = '2020-01-22' 
 rad_fish = get_rad_data_one_day(day_str_fish, all_profiles)
 
@@ -257,22 +245,204 @@ rad_sugar = get_rad_data_one_day(day_str_sugar, all_profiles)
 
 #%% subplots
 
-def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
+def plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar):
     
-    plt.rcParams.update({'font.size': 30})
+    fig, ax = plt.subplots(1,3,figsize=(20,8))
+    
+    ax[0].set_ylabel('Altitude (km)')  
+    ax[0].set_title('Shortwave')
+    ax[1].set_title('Longwave')
+    ax[2].set_title('Net')
+    ax[1].set_xlabel('Mean heating rates / K/day')
+    
+    xmin=-6
+    xmax=5
+    ymin=0.1
+    ymax=10
+    for k in range(3):
+        ax[k].grid(True, alpha=0.6)
+        ax[k].set_xlim([xmin,xmax]) 
+        ax[k].set_ylim([ymin,ymax]) 
+        ax[k].tick_params(direction='in', bottom=True, top=True, left=True, right=True,grid_alpha=0.6)
+        ax[k].spines['right'].set_visible(False)
+        ax[k].spines['top'].set_visible(False)
+        for axis in ['top','bottom','left','right']:
+              ax[k].spines[axis].set_linewidth(1.3)
+        
+    Dates = ['fish', 'flower', 'gravel', 'sugar']
+    var_vec = ["Q_rad_sw", "Q_rad_lw", "Q_rad"]
+    
+    # =============================================================================
+    #     SW 
+    # =============================================================================
+    var = var_vec[0]
+    
+    fish_var = rad_fish[var].where(rad_fish["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    flower_var = rad_flower[var].where(rad_flower["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    gravel_var = rad_gravel[var].where(rad_gravel["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    sugar_var = rad_sugar[var].where(rad_sugar["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    km_vec = sugar_var.alt.values / 1000
 
-    fig, ax = plt.subplots(1,3,figsize=(20,10))
+    ax[0].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[0].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[0].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[0].plot(sugar_var.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+
+    # =============================================================================
+    #      LW
+    # =============================================================================
+    var = var_vec[1]
+    fish_var = rad_fish[var]
+    flower_var = rad_flower[var]
+    gravel_var = rad_gravel[var]
+    sugar_var = rad_sugar[var]
+    
+    ax[1].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[1].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[1].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[1].plot(sugar_var.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+
+    # =============================================================================
+    #      Net
+    # =============================================================================
+    var = var_vec[2]
+    fish_var = rad_fish[var]
+    flower_var = rad_flower[var]
+    gravel_var = rad_gravel[var]
+    sugar_var = rad_sugar[var]
+    
+    ax[2].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[2].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[2].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[2].plot(sugar_var.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+
+    
+    ax[1].tick_params(labelleft=False)  
+    ax[2].tick_params(labelleft=False)
+    
+    fig.tight_layout() 
+    
+    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+    
+
+#%% call function to plot
+    
+plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar)
+
+#%% spatial variance
+
+
+def plot_radiative_IQR(rad_fish, rad_flower, rad_gravel, rad_sugar):
+    
+    # =============================================================================
+    #     specificy quantiles
+    # =============================================================================
+    q1=0.25
+    q2=0.75
+    
+    fig, ax = plt.subplots(1,3,figsize=(20,8))
+    ax[0].set_ylabel('Altitude (km)')  
+    ax[0].set_title('Shortwave')
+    ax[1].set_title('Longwave')
+    ax[2].set_title('Net')
+    ax[1].set_xlabel('spatial variance / K/day')
+    
+    xmin=0
+    xmax=5
+    ymin=0.1
+    ymax=10
+    for k in range(3):
+        ax[k].grid(True, alpha=0.6)
+        ax[k].set_xlim([xmin,xmax]) 
+        ax[k].set_ylim([ymin,ymax]) 
+        ax[k].tick_params(direction='in', bottom=True, top=True, left=True, right=True,grid_alpha=0.6)
+        ax[k].spines['right'].set_visible(False)
+        ax[k].spines['top'].set_visible(False)
+        for axis in ['top','bottom','left','right']:
+              ax[k].spines[axis].set_linewidth(1.3)
+        
+    Dates = ['fish', 'flower', 'gravel', 'sugar']
+    var_vec = ["Q_rad_sw", "Q_rad_lw", "Q_rad"]
+    
+    # =============================================================================
+    #      SW 
+    # =============================================================================
+    var = var_vec[0]
+    km_vec = rad_fish[var].alt.values / 1000
+
+    fish_var = rad_fish[var].where(rad_fish["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    flower_var = rad_flower[var].where(rad_flower["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    gravel_var = rad_gravel[var].where(rad_gravel["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    sugar_var = rad_sugar[var].where(rad_sugar["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    
+    fish_spatial_variance = abs(fish_var.quantile(q1, dim="launch_time") - rad_fish[var].quantile(q2, dim="launch_time"))
+    flower_spatial_variance = abs(flower_var.quantile(q1, dim="launch_time") - flower_var.quantile(q2, dim="launch_time"))
+    gravel_spatial_variance = abs(gravel_var.quantile(q1, dim="launch_time") - gravel_var.quantile(q2, dim="launch_time"))
+    sugar_spatial_variance = abs(sugar_var.quantile(q1, dim="launch_time") - sugar_var.quantile(q2, dim="launch_time"))
+
+    ax[0].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[0].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[0].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[0].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+    
+    # =============================================================================
+    #      LW 
+    # =============================================================================
+    var = var_vec[1]
+    fish_spatial_variance = abs(rad_fish[var].quantile(q1, dim="launch_time") - rad_fish[var].quantile(q2, dim="launch_time"))
+    flower_spatial_variance = abs(rad_flower[var].quantile(q1, dim="launch_time") - rad_flower[var].quantile(q2, dim="launch_time"))
+    gravel_spatial_variance = abs(rad_gravel[var].quantile(q1, dim="launch_time") - rad_gravel[var].quantile(q2, dim="launch_time"))
+    sugar_spatial_variance = abs(rad_sugar[var].quantile(q1, dim="launch_time") - rad_sugar[var].quantile(q2, dim="launch_time"))
+    
+    ax[1].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[1].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[1].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[1].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+
+    # =============================================================================
+    #      net
+    # =============================================================================
+    var = var_vec[2]
+    fish_spatial_variance = abs(rad_fish[var].quantile(q1, dim="launch_time") - rad_fish[var].quantile(q2, dim="launch_time"))
+    flower_spatial_variance = abs(rad_flower[var].quantile(q1, dim="launch_time") - rad_flower[var].quantile(q2, dim="launch_time"))
+    gravel_spatial_variance = abs(rad_gravel[var].quantile(q1, dim="launch_time") - rad_gravel[var].quantile(q2, dim="launch_time"))
+    sugar_spatial_variance = abs(rad_sugar[var].quantile(q1, dim="launch_time") - rad_sugar[var].quantile(q2, dim="launch_time"))
+    
+    ax[2].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[2].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[2].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[2].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+
+    
+    ax[1].tick_params(labelleft=False)  
+    ax[2].tick_params(labelleft=False)
+    
+    fig.tight_layout() 
+    
+    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+    
+
+#%%
+    
+plot_radiative_IQR(rad_fish, rad_flower, rad_gravel, rad_sugar)
+
+#%% or plotting standard deviation
+
+def plot_radiative_sigma(rad_fish, rad_flower, rad_gravel, rad_sugar):
+    
+
+    fig, ax = plt.subplots(1,3,figsize=(20,8))
     ax[0].set_ylabel('Altitude (km)')  
     
     ax[0].set_title('Shortwave')
     ax[1].set_title('Longwave')
     ax[2].set_title('Net')
     
-    ax[1].set_xlabel('Heating rate (K/day)')
+    ax[1].set_xlabel('Standard deviation / K/day')
     
-    xmin=-5
+    xmin=0
     xmax=5
-    ymin=0
+    ymin=0.1
     ymax=10
     for k in range(3):
         #ax[k].grid(color='k', linestyle='-', linewidth=0.8)
@@ -285,73 +455,59 @@ def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
         for axis in ['top','bottom','left','right']:
               ax[k].spines[axis].set_linewidth(1.3)
         
-    #Dates = ['fish: 2020-01-22', 'flower: 2020-02-02', 'gravel: 2020-02-02', 'sugar: 2020-02-09']
     Dates = ['fish', 'flower', 'gravel', 'sugar']
-
     var_vec = ["Q_rad_sw", "Q_rad_lw", "Q_rad"]
-    alpha_all = 0.02
     
-    # SW 
+    # =============================================================================
+    #      SW
+    # =============================================================================
     var = var_vec[0]
-    fish_var = rad_fish[var]
-    flower_var = rad_flower[var]
-    gravel_var = rad_gravel[var]
-    sugar_var = rad_sugar[var]
-    km_vec = sugar_var.alt.values / 1000
+    km_vec = rad_fish[var].alt.values / 1000
 
-    for i in range(0, len(fish_var.launch_time)):
-        ax[0].plot(fish_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
-    ax[0].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
-    for i in range(0, len(flower_var.launch_time)):
-        ax[0].plot(flower_var.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all)
-    ax[0].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
-    for i in range(0, len(gravel_var.launch_time)):
-        ax[0].plot(gravel_var.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
-    ax[0].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    for i in range(0, len(sugar_var.launch_time)):
-        ax[0].plot(sugar_var.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all)
-    ax[0].plot(sugar_var.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+    fish_var = rad_fish[var].where(rad_fish["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    flower_var = rad_flower[var].where(rad_flower["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    gravel_var = rad_gravel[var].where(rad_gravel["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    sugar_var = rad_sugar[var].where(rad_sugar["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    
+    fish_spatial_variance = fish_var.std(dim="launch_time")
+    flower_spatial_variance = flower_var.std(dim="launch_time")
+    gravel_spatial_variance = gravel_var.std(dim="launch_time")
+    sugar_spatial_variance = sugar_var.std(dim="launch_time")
+
+    ax[0].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[0].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[0].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[0].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
     #ax[0].legend(loc='best')
-    # LW
+    
+    # =============================================================================
+    #      LW
+    # =============================================================================
     var = var_vec[1]
-    fish_var = rad_fish[var]
-    flower_var = rad_flower[var]
-    gravel_var = rad_gravel[var]
-    sugar_var = rad_sugar[var]
+    fish_spatial_variance = rad_fish[var].std(dim="launch_time")
+    flower_spatial_variance = rad_flower[var].std(dim="launch_time")
+    gravel_spatial_variance = rad_gravel[var].std(dim="launch_time")
+    sugar_spatial_variance = rad_sugar[var].std(dim="launch_time")
     
-    # fish mediumslateblue
-    for i in range(len(fish_var.launch_time)):
-        ax[1].plot(fish_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
-    ax[1].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
-    for i in range(len(flower_var.launch_time)):
-        ax[1].plot(flower_var.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all)
-    ax[1].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
-    for i in range(len(gravel_var.launch_time)):
-        ax[1].plot(gravel_var.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
-    ax[1].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    for i in range(len(sugar_var.launch_time)):
-        ax[1].plot(sugar_var.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all)
-    ax[1].plot(sugar_var.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+    ax[1].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[1].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[1].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[1].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
 
-    # Net
+    # =============================================================================
+    #      net
+    # =============================================================================
     var = var_vec[2]
-    fish_var = rad_fish[var]
-    flower_var = rad_flower[var]
-    gravel_var = rad_gravel[var]
-    sugar_var = rad_sugar[var]
     
-    for i in range(len(fish_var.launch_time)):
-        ax[2].plot(fish_var.isel(launch_time=i), km_vec,color="blue", linewidth=2,alpha=alpha_all)
-    ax[2].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
-    for i in range(len(flower_var.launch_time)):
-        ax[2].plot(flower_var.isel(launch_time=i), km_vec,color="palevioletred", linewidth=2,alpha=alpha_all)
-    ax[2].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
-    for i in range(len(gravel_var.launch_time)):
-        ax[2].plot(gravel_var.isel(launch_time=i), km_vec,color="deepskyblue", linewidth=2,alpha=alpha_all)
-    ax[2].plot(gravel_var.mean(dim='launch_time'), km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    for i in range(len(sugar_var.launch_time)):
-        ax[2].plot(sugar_var.isel(launch_time=i), km_vec,color="lightgrey", linewidth=2,alpha=alpha_all)
-    ax[2].plot(sugar_var.mean(dim='launch_time'), km_vec,linewidth=5, color='lightgrey', label= Dates[3])
+    fish_spatial_variance = rad_fish[var].std(dim="launch_time")
+    flower_spatial_variance = rad_flower[var].std(dim="launch_time")
+    gravel_spatial_variance = rad_gravel[var].std(dim="launch_time")
+    sugar_spatial_variance = rad_sugar[var].std(dim="launch_time")
+    
+    ax[2].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
+    ax[2].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
+    ax[2].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
+    ax[2].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
 
     
     ax[1].tick_params(labelleft=False)  
@@ -363,4 +519,4 @@ def plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar):
     
 
 #%%
-plot_rad_rates(rad_fish, rad_flower, rad_gravel, rad_sugar)
+plot_radiative_sigma(rad_fish, rad_flower, rad_gravel, rad_sugar)
