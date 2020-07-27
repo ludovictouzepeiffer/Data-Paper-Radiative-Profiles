@@ -16,6 +16,7 @@ import xarray as xr
 plt.rcParams.update({'font.size': 24})
 import os
 import seaborn as sns
+import matplotlib.cm as cm
 sns.set(context='notebook', style='white', palette='deep', font='sans-serif', font_scale=3, color_codes=True, rc=None)
 
 #%% 
@@ -108,9 +109,9 @@ def plot_mean_environmental_profiles(xr_fish, xr_flower, xr_gravel, xr_sugar):
     fig, ax = plt.subplots(1,3,figsize=(20,8))
 
     ax[0].set_ylabel('Altitude (km)')
-    ax[0].set_xlabel('Temperature / K ')
-    ax[1].set_xlabel('Specific humidity / g/kg')
-    ax[2].set_xlabel('Relative humidity / %')
+    ax[0].set_xlabel('Temperature (K) ')
+    ax[1].set_xlabel('Specific humidity (g/kg)')
+    ax[2].set_xlabel('Relative humidity (%)')
     ax[1].set_title('Environmental means')
 
     Dates = ['fish: 2020-01-22', 'flower: 2020-02-02', 'gravel: 2020-02-05', 'sugar: 2020-02-09']
@@ -242,7 +243,6 @@ rad_gravel = get_rad_data_one_day(day_str_gravel, all_profiles)
 day_str_sugar = '2020-02-09' 
 rad_sugar = get_rad_data_one_day(day_str_sugar, all_profiles)
 
-
 #%% subplots
 
 def plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar):
@@ -253,7 +253,7 @@ def plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar):
     ax[0].set_title('Shortwave')
     ax[1].set_title('Longwave')
     ax[2].set_title('Net')
-    ax[1].set_xlabel('Mean heating rates / K/day')
+    ax[1].set_xlabel('Mean heating rates (K/day)')
     
     xmin=-6
     xmax=5
@@ -329,104 +329,7 @@ def plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar):
     
 plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar)
 
-#%% spatial variance
-
-
-def plot_radiative_IQR(rad_fish, rad_flower, rad_gravel, rad_sugar):
-    
-    # =============================================================================
-    #     specificy quantiles
-    # =============================================================================
-    q1=0.25
-    q2=0.75
-    
-    fig, ax = plt.subplots(1,3,figsize=(20,8))
-    ax[0].set_ylabel('Altitude (km)')  
-    ax[0].set_title('Shortwave')
-    ax[1].set_title('Longwave')
-    ax[2].set_title('Net')
-    ax[1].set_xlabel('spatial variance / K/day')
-    
-    xmin=0
-    xmax=5
-    ymin=0.1
-    ymax=10
-    for k in range(3):
-        ax[k].grid(True, alpha=0.6)
-        ax[k].set_xlim([xmin,xmax]) 
-        ax[k].set_ylim([ymin,ymax]) 
-        ax[k].tick_params(direction='in', bottom=True, top=True, left=True, right=True,grid_alpha=0.6)
-        ax[k].spines['right'].set_visible(False)
-        ax[k].spines['top'].set_visible(False)
-        for axis in ['top','bottom','left','right']:
-              ax[k].spines[axis].set_linewidth(1.3)
-        
-    Dates = ['fish', 'flower', 'gravel', 'sugar']
-    var_vec = ["Q_rad_sw", "Q_rad_lw", "Q_rad"]
-    
-    # =============================================================================
-    #      SW 
-    # =============================================================================
-    var = var_vec[0]
-    km_vec = rad_fish[var].alt.values / 1000
-
-    fish_var = rad_fish[var].where(rad_fish["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    flower_var = rad_flower[var].where(rad_flower["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    gravel_var = rad_gravel[var].where(rad_gravel["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    sugar_var = rad_sugar[var].where(rad_sugar["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    
-    fish_spatial_variance = abs(fish_var.quantile(q1, dim="launch_time") - rad_fish[var].quantile(q2, dim="launch_time"))
-    flower_spatial_variance = abs(flower_var.quantile(q1, dim="launch_time") - flower_var.quantile(q2, dim="launch_time"))
-    gravel_spatial_variance = abs(gravel_var.quantile(q1, dim="launch_time") - gravel_var.quantile(q2, dim="launch_time"))
-    sugar_spatial_variance = abs(sugar_var.quantile(q1, dim="launch_time") - sugar_var.quantile(q2, dim="launch_time"))
-
-    ax[0].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
-    ax[0].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
-    ax[0].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    ax[0].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
-    
-    # =============================================================================
-    #      LW 
-    # =============================================================================
-    var = var_vec[1]
-    fish_spatial_variance = abs(rad_fish[var].quantile(q1, dim="launch_time") - rad_fish[var].quantile(q2, dim="launch_time"))
-    flower_spatial_variance = abs(rad_flower[var].quantile(q1, dim="launch_time") - rad_flower[var].quantile(q2, dim="launch_time"))
-    gravel_spatial_variance = abs(rad_gravel[var].quantile(q1, dim="launch_time") - rad_gravel[var].quantile(q2, dim="launch_time"))
-    sugar_spatial_variance = abs(rad_sugar[var].quantile(q1, dim="launch_time") - rad_sugar[var].quantile(q2, dim="launch_time"))
-    
-    ax[1].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
-    ax[1].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
-    ax[1].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    ax[1].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
-
-    # =============================================================================
-    #      net
-    # =============================================================================
-    var = var_vec[2]
-    fish_spatial_variance = abs(rad_fish[var].quantile(q1, dim="launch_time") - rad_fish[var].quantile(q2, dim="launch_time"))
-    flower_spatial_variance = abs(rad_flower[var].quantile(q1, dim="launch_time") - rad_flower[var].quantile(q2, dim="launch_time"))
-    gravel_spatial_variance = abs(rad_gravel[var].quantile(q1, dim="launch_time") - rad_gravel[var].quantile(q2, dim="launch_time"))
-    sugar_spatial_variance = abs(rad_sugar[var].quantile(q1, dim="launch_time") - rad_sugar[var].quantile(q2, dim="launch_time"))
-    
-    ax[2].plot(fish_spatial_variance,km_vec,linewidth=5, color='blue', label= Dates[0])
-    ax[2].plot(flower_spatial_variance,km_vec,linewidth=5, color='palevioletred', label= Dates[1])
-    ax[2].plot(gravel_spatial_variance, km_vec,linewidth=5, color='deepskyblue', label= Dates[2])
-    ax[2].plot(sugar_spatial_variance, km_vec,linewidth=5, color='lightgrey', label= Dates[3])
-
-    
-    ax[1].tick_params(labelleft=False)  
-    ax[2].tick_params(labelleft=False)
-    
-    fig.tight_layout() 
-    
-    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
-    
-
-#%%
-    
-plot_radiative_IQR(rad_fish, rad_flower, rad_gravel, rad_sugar)
-
-#%% or plotting standard deviation
+#%% standard deviation
 
 def plot_radiative_sigma(rad_fish, rad_flower, rad_gravel, rad_sugar):
     
@@ -438,7 +341,7 @@ def plot_radiative_sigma(rad_fish, rad_flower, rad_gravel, rad_sugar):
     ax[1].set_title('Longwave')
     ax[2].set_title('Net')
     
-    ax[1].set_xlabel('Standard deviation / K/day')
+    ax[1].set_xlabel('Standard deviation (K/day)')
     
     xmin=0
     xmax=5
