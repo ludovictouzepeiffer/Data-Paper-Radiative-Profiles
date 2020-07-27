@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jul  2 19:46:48 2020
 
-@author: annaleaalbright
 """
 
 
@@ -13,9 +11,7 @@ import matplotlib.pyplot as plt
 import pytz
 import os
 import seaborn as sns
-import datetime
 import pandas as pd
-import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 plt.rcParams.update({'font.size': 18})
 
@@ -32,23 +28,24 @@ all_profiles = xr.open_dataset(path_to_rad_profiles)
 # =============================================================================
 # count number of sondes per platform / dropsondes vs. radiosondes
 # =============================================================================
-# Platforms : ['HALO', 'ATL', 'BCO', 'RHB', 'MER', 'MET', 'P3']
+
 # dropsondes
 HALO_sondes = all_profiles.where(all_profiles.platform=='HALO', drop=True)
 P3_sondes = all_profiles.where(all_profiles.platform=='P3', drop=True)
 all_dropsondes = xr.concat([HALO_sondes, P3_sondes], dim="launch_time")
 
 # radiosondes
+ATL_radiosondes = all_profiles.where(all_profiles.platform=='ATL', drop=True)
 BCO_radiosondes = all_profiles.where(all_profiles.platform=='BCO', drop=True)
 RHB_radiosondes = all_profiles.where(all_profiles.platform=='RHB', drop=True)
 MER_radiosondes = all_profiles.where(all_profiles.platform=='MER', drop=True)
 MET_radiosondes = all_profiles.where(all_profiles.platform=='MET', drop=True)
-all_radiosondes = xr.concat([BCO_radiosondes, RHB_radiosondes,
+all_radiosondes = xr.concat([ATL_radiosondes, BCO_radiosondes, RHB_radiosondes,
                              MER_radiosondes, MET_radiosondes], dim="launch_time")
 
 num_dropsondes = int(len(HALO_sondes.launch_time) + len(P3_sondes.launch_time))
 num_radiosondes = int(len(BCO_radiosondes.launch_time) + len(RHB_radiosondes.launch_time)+
-                      len(MER_radiosondes.launch_time) + len(MET_radiosondes.launch_time))
+                      len(MER_radiosondes.launch_time) + len(MET_radiosondes.launch_time) + len(ATL_radiosondes.launch_time))
 print('total number of dropsondes:', num_dropsondes)
 print('total number of radiosondes:', num_radiosondes)
 
@@ -101,16 +98,16 @@ sns.set(context='notebook', style='whitegrid', palette='deep', font='sans-serif'
 
 fig = plt.figure(figsize=(12,10))
 ax = fig.add_subplot(1, 1, 1) 
-ax.plot(time, count_vec_dropsondes, linewidth=4, color='crimson', alpha =1, label=f"dropsondes ({num_dropsondes} total)")  
-ax.plot(time, count_vec_radiosondes, linewidth=4, color='royalblue', alpha = 0.7, label=f"radiosondes ({num_radiosondes} total)")  
+ax.plot(time, count_vec_radiosondes, linewidth=5, color='salmon', alpha = 1, label=f"{num_radiosondes} radiosondes")  
+ax.plot(time, count_vec_dropsondes, linewidth=5, color='navy', alpha =1, label=f"{num_dropsondes} dropsondes")  
 myFmt = mdates.DateFormatter("%-H")
 ax.xaxis.set_major_formatter(myFmt)
 ticks = ax.get_xticks()
 ax.set_xticks(np.linspace(ticks[0], mdates.date2num(mdates.num2date(ticks[-2])), 8))
-ax.set_ylabel("sondes per interval")
-ax.set_xlabel("local time (10-minute intervals)")
+ax.set_ylabel("number of sondes")
+ax.set_xlabel("local time")
 ax.grid(True, alpha=0.5)
-ax.set_ylim([0, 100])
+ax.set_ylim([0, 120])
 ax.legend(loc='best', frameon=False)
 plt.minorticks_on()
 plt.gca().tick_params(axis='y', which='minor', left=False)
