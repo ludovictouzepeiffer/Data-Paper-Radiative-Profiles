@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jul  6 12:36:38 2020
-
-@author: annaleaalbright
+# Figure 6
 
 # plot mixing ratio, theta, and LW / SW / net radiative heating rates for four example days (one for each pattern)
 # and metric of spatial variance in radiative heating rates
