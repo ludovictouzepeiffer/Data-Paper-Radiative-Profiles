@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-# Figure 6
+Figure 6
 
 # plot mixing ratio, theta, and LW / SW / net radiative heating rates for four example days (one for each pattern)
 # and metric of spatial variance in radiative heating rates
@@ -14,7 +14,6 @@ import xarray as xr
 plt.rcParams.update({'font.size': 24})
 import os
 import seaborn as sns
-import matplotlib.cm as cm
 sns.set(context='notebook', style='white', palette='deep', font='sans-serif', font_scale=3, color_codes=True, rc=None)
 
 #%% 
@@ -39,42 +38,55 @@ def choose_HALO_circle(sondes):
     return sondes_circle
 
 def get_data_one_day(fp_dropsondes, day_str):
-    all_sondes = xr.open_dataset(fp_dropsondes)
+    all_sondes = xr.open_dataset(fp_dropsondes).swap_dims({"sounding": "launch_time"})
     sondes_oneday = all_sondes.sel(launch_time=day_str) 
     Sondes_Circle = choose_HALO_circle(sondes_oneday)
     
     # remove sondes with large nunber of NaNs
     # threshold : require this many non-NA values
     sondes_circle = Sondes_Circle.dropna(dim="launch_time", \
-                                         subset=['mr'], \
+                                         subset=['q'], \
                                          how='any', thresh=300) 
     
-    nsondes_qc = len(sondes_circle.launch_time)
+    nsondes_qc = len(sondes_circle['launch_time'])
     print(nsondes_qc, "sondes after quality control on " + day_str)
 
     # =============================================================================
     #          load environmental data
     # ============================================================================= 
 
-    # convert mixing ratio in g/kg to kg/kg
-    if (sondes_circle['mr'].max().values > 10) : mixing_ratio  = sondes_circle['mr']  / 1000
     kgtog = 1000
-    specific_humidity_g_kg = (mixing_ratio / (1 + mixing_ratio)) * kgtog 
     CtoK = 273.15
-    temp_K = sondes_circle['T'] + CtoK
+    
+    # load specific humidity, convert from kg/kg to g/kg
+    if (sondes_circle['q'].max().values > 10): 
+        specific_humidity_g_kg  = sondes_circle['q']  * kgtog
+    else:
+        specific_humidity_g_kg  = sondes_circle['q']
+            
+    # convert temperature from C to K
+    if (sondes_circle['T'].max().values < 100): 
+        temp_K  = sondes_circle['T'] + CtoK
+    else:
+        temp_K  = sondes_circle['T']
+            
     # convert RH to % units
     RH  = sondes_circle['rh']
-    if (sondes_circle['rh'].max().values < 1) : RH  = sondes_circle['rh']  *100
+    if (sondes_circle['rh'].max().values < 1): 
+        RH  = sondes_circle['rh'] * 100
+    else:
+        RH  = sondes_circle['rh']
+    
     launch_time = sondes_circle['launch_time']
-    alt_vec = sondes_circle['alt']
+    alt_vec = sondes_circle['height']
 
-    # compress into xarray object    
+    # save as xarray Dataset    
     xr_day = xr.Dataset(
-            data_vars={'specific_humidity': (('launch_time', 'alt'), specific_humidity_g_kg),
-                       'temp_K':    (('launch_time', 'alt'), temp_K),
-                       'RH':    (('launch_time', 'alt'), RH),},
+            data_vars={'specific_humidity': (('launch_time', 'height'), specific_humidity_g_kg),
+                       'temp_K':    (('launch_time', 'height'), temp_K),
+                       'RH':    (('launch_time', 'height'), RH),},
             coords={'launch_time': launch_time,
-                    'alt': alt_vec})
+                    'height': alt_vec})
     
     return xr_day
 
@@ -83,7 +95,9 @@ def get_data_one_day(fp_dropsondes, day_str):
 # Load preprocessed environmental data in HALO circle 
 # =============================================================================  
 
-fp_dropsondes = '/Users/annaleaalbright/Dropbox/EUREC4A/Dropsondes/Data/all_sondes_w_cloud_flag.nc'
+# load JOANNE dropsondes
+input_dir = '/Users/annaleaalbright/Dropbox/EUREC4A/Dropsondes/Data/'
+fp_dropsondes = os.path.join(input_dir,'EUREC4A_JOANNE_Dropsonde-RD41_Level_3_v0.5.7-alpha+0.g45fe69d.dirty.nc')
 
 day_str_fish = '2020-01-22' 
 xr_fish = get_data_one_day(fp_dropsondes, day_str_fish)
@@ -107,9 +121,9 @@ def plot_mean_environmental_profiles(xr_fish, xr_flower, xr_gravel, xr_sugar):
     fig, ax = plt.subplots(1,3,figsize=(20,8))
 
     ax[0].set_ylabel('Altitude (km)')
-    ax[0].set_xlabel('Temperature (K) ')
-    ax[1].set_xlabel('Specific humidity (g/kg)')
-    ax[2].set_xlabel('Relative humidity (%)')
+    ax[0].set_xlabel('Temperature / K ')
+    ax[1].set_xlabel('Specific humidity / g/kg')
+    ax[2].set_xlabel('Relative humidity / %')
     ax[1].set_title('Environmental means')
 
     Dates = ['fish: 2020-01-22', 'flower: 2020-02-02', 'gravel: 2020-02-05', 'sugar: 2020-02-09']
@@ -135,7 +149,7 @@ def plot_mean_environmental_profiles(xr_fish, xr_flower, xr_gravel, xr_sugar):
     var2 = xr_flower[var]
     var3 = xr_gravel[var]
     var4 = xr_sugar[var]
-    km_vec = var4.alt.values / 1000
+    km_vec = var4.height.values / 1000
       
     ax[0].plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[0])
     ax[0].plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='palevioletred', label= Dates[1])
@@ -151,7 +165,7 @@ def plot_mean_environmental_profiles(xr_fish, xr_flower, xr_gravel, xr_sugar):
     var2 = xr_flower[var]
     var3 = xr_gravel[var]
     var4 = xr_sugar[var]
-    km_vec = var4.alt.values / 1000
+    km_vec = var4.height.values / 1000
 
     ax[1].plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[0])
     ax[1].plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='palevioletred', label= Dates[1])
@@ -170,7 +184,7 @@ def plot_mean_environmental_profiles(xr_fish, xr_flower, xr_gravel, xr_sugar):
     var2 = xr_flower[var]
     var3 = xr_gravel[var]
     var4 = xr_sugar[var]
-    km_vec = var4.alt.values / 1000
+    km_vec = var4.height.values / 1000
 
     ax[2].plot(var1.mean(dim='launch_time'), km_vec,linewidth=5, color='blue', label= Dates[0])
     ax[2].plot(var2.mean(dim='launch_time'), km_vec,linewidth=5, color='palevioletred', label= Dates[1])
@@ -210,11 +224,11 @@ def get_rad_data_one_day(day_str, all_profiles):
 
     # compress into xarray object    
     rad_day = xr.Dataset(
-            data_vars={'Q_rad':    (('launch_time', 'alt'), q_rad),
-                       'Q_rad_lw':    (('launch_time', 'alt'), q_rad_lw),
-                       'Q_rad_sw':    (('launch_time', 'alt'), q_rad_sw)},
+            data_vars={'Q_rad':    (('launch_time', 'height'), q_rad),
+                       'Q_rad_lw':    (('launch_time', 'height'), q_rad_lw),
+                       'Q_rad_sw':    (('launch_time', 'height'), q_rad_sw)},
             coords={'launch_time': launch_time,
-                    'alt': alt_vec})
+                    'height': alt_vec})
     
     return rad_day
 
@@ -251,7 +265,7 @@ def plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar):
     ax[0].set_title('Shortwave')
     ax[1].set_title('Longwave')
     ax[2].set_title('Net')
-    ax[1].set_xlabel('Mean heating rates (K/day)')
+    ax[1].set_xlabel('Mean heating rates / K/day')
     
     xmin=-6
     xmax=5
@@ -275,11 +289,11 @@ def plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar):
     # =============================================================================
     var = var_vec[0]
     
-    fish_var = rad_fish[var].where(rad_fish["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    flower_var = rad_flower[var].where(rad_flower["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    gravel_var = rad_gravel[var].where(rad_gravel["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    sugar_var = rad_sugar[var].where(rad_sugar["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    km_vec = sugar_var.alt.values / 1000
+    fish_var = rad_fish[var].where(rad_fish["Q_rad_sw"].mean(dim="height") > 0, drop=True)
+    flower_var = rad_flower[var].where(rad_flower["Q_rad_sw"].mean(dim="height") > 0, drop=True)
+    gravel_var = rad_gravel[var].where(rad_gravel["Q_rad_sw"].mean(dim="height") > 0, drop=True)
+    sugar_var = rad_sugar[var].where(rad_sugar["Q_rad_sw"].mean(dim="height") > 0, drop=True)
+    km_vec = sugar_var.height.values / 1000
 
     ax[0].plot(fish_var.mean(dim='launch_time'),km_vec,linewidth=5, color='blue', label= Dates[0])
     ax[0].plot(flower_var.mean(dim='launch_time'),km_vec,linewidth=5, color='palevioletred', label= Dates[1])
@@ -327,7 +341,7 @@ def plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar):
     
 plot_rad_mean_profiles(rad_fish, rad_flower, rad_gravel, rad_sugar)
 
-#%% standard deviation
+#%% plot standard deviation
 
 def plot_radiative_sigma(rad_fish, rad_flower, rad_gravel, rad_sugar):
     
@@ -339,7 +353,7 @@ def plot_radiative_sigma(rad_fish, rad_flower, rad_gravel, rad_sugar):
     ax[1].set_title('Longwave')
     ax[2].set_title('Net')
     
-    ax[1].set_xlabel('Standard deviation (K/day)')
+    ax[1].set_xlabel('Standard deviation / K/day')
     
     xmin=0
     xmax=5
@@ -363,12 +377,12 @@ def plot_radiative_sigma(rad_fish, rad_flower, rad_gravel, rad_sugar):
     #      SW
     # =============================================================================
     var = var_vec[0]
-    km_vec = rad_fish[var].alt.values / 1000
+    km_vec = rad_fish[var].height.values / 1000
 
-    fish_var = rad_fish[var].where(rad_fish["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    flower_var = rad_flower[var].where(rad_flower["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    gravel_var = rad_gravel[var].where(rad_gravel["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
-    sugar_var = rad_sugar[var].where(rad_sugar["Q_rad_sw"].mean(dim="alt") > 0, drop=True)
+    fish_var = rad_fish[var].where(rad_fish["Q_rad_sw"].mean(dim="height") > 0, drop=True)
+    flower_var = rad_flower[var].where(rad_flower["Q_rad_sw"].mean(dim="height") > 0, drop=True)
+    gravel_var = rad_gravel[var].where(rad_gravel["Q_rad_sw"].mean(dim="height") > 0, drop=True)
+    sugar_var = rad_sugar[var].where(rad_sugar["Q_rad_sw"].mean(dim="height") > 0, drop=True)
     
     fish_spatial_variance = fish_var.std(dim="launch_time")
     flower_spatial_variance = flower_var.std(dim="launch_time")
