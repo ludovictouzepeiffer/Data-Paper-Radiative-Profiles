@@ -3,7 +3,7 @@
 """
 Figure 6
 
-# plot mixing ratio, theta, and LW / SW / net radiative heating rates for four example days (one for each pattern)
+# plot mixing ratio, theta, and LW, SW, and net radiative heating rates for four example days (one for each pattern)
 # and metric of spatial variance in radiative heating rates
 
 """
