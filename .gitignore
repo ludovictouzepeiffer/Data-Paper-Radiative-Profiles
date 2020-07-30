@@ -1,5 +1,6 @@
-.ipynb_checkpoints/
+.gitignore
 Figures/
+.ipynb_checkpoints/
+.DS_Store
 .fuse*
 output/
-.gitignore
