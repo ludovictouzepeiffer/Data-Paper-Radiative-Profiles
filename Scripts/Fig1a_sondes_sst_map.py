@@ -58,6 +58,9 @@ if __name__ == "__main__":
     ax.coastlines(resolution='50m')
     ax.set_extent([-60,-49,6,17])
     gl = ax.gridlines(color='Grey',draw_labels=True)
+    fs = 12
+    gl.xlabel_style = {'size': fs}
+    gl.ylabel_style = {'size': fs}
 
     # plot
     sst_cmap = plt.cm.viridis_r
@@ -92,13 +95,14 @@ if __name__ == "__main__":
         return alpha*color + (1 - alpha)*white
     colors = np.array([alpha_to_white(color) for color in colors])
     ssthm.set_facecolor(colors)
-    
-    cbar.ax.set_ylabel('SST (K)')
-    
-    # axis labels
+
+    # labels
+    cbar.ax.tick_params(labelsize=fs)
+    cbar.ax.set_ylabel('SST (K)',fontsize=fs)
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
+    ax.text(0.03,0.94,'(a)',transform = ax.transAxes,fontsize=18,color='white')
     
     # save
-    plt.savefig('../Figures/sst_dropsondes_and_radiosondes.png',bbox_inches='tight')
+    plt.savefig('../Figures/Figure1a.png',bbox_inches='tight')
     plt.show()
