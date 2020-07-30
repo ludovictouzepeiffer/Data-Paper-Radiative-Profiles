@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+A.L. Albright
 
-plot environmental variables and radiative heating rates for a persistent 'veil cloud' 
+Figure 6. Plot environmental variables and radiative heating rates for a persistent 'veil cloud' 
 occurring on 24 January 2020
 
 """
@@ -143,6 +144,8 @@ def get_rad_data_one_day(fp_rad_profiles, day_str):
 # =============================================================================
 # load Joanne dropsondes
 # =============================================================================
+
+# REPLACE PATHS BELOW
 
 input_dir = "/Users/annaleaalbright/Dropbox/EUREC4A/Dropsondes/Data/"
 fp_dropsondes = os.path.join(
