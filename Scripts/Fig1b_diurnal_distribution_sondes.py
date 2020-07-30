@@ -18,7 +18,10 @@ plt.rcParams.update({"font.size": 18})
 #             open files
 # =============================================================================
 
-dir_profile = "/Users/annaleaalbright/Dropbox/EUREC4A/RadiativeProfiles/Data/"
+# EDIT PATH BELOW
+# dir_profile = "/Users/annaleaalbright/Dropbox/EUREC4A/RadiativeProfiles/Data/"
+dir_profile = "/Users/bfildier/Data/EUREC4A/merged/radiative_profiles"
+
 path_to_rad_profiles = os.path.join(dir_profile, "rad_profiles_all_sondes_ERA.nc")
 all_profiles = xr.open_dataset(path_to_rad_profiles)
 
@@ -124,12 +127,12 @@ sns.set(
     rc=None,
 )
 
-fig = plt.figure(figsize=(12, 10))
+fig = plt.figure(figsize=(12, 5))
 ax = fig.add_subplot(1, 1, 1)
 ax.plot(
     time,
     count_vec_radiosondes,
-    linewidth=5,
+    linewidth=3,
     color="salmon",
     alpha=1,
     label=f"{num_radiosondes} radiosondes",
@@ -137,7 +140,7 @@ ax.plot(
 ax.plot(
     time,
     count_vec_dropsondes,
-    linewidth=5,
+    linewidth=3,
     color="navy",
     alpha=1,
     label=f"{num_dropsondes} dropsondes",
@@ -149,10 +152,13 @@ ax.set_xticks(np.linspace(ticks[0], mdates.date2num(mdates.num2date(ticks[-2])),
 ax.set_ylabel("number of sondes")
 ax.set_xlabel("local time")
 ax.grid(True, alpha=0.5)
-ax.set_ylim([0, 120])
-ax.legend(loc="best", frameon=False)
+ax.set_ylim([0, 130])
+ax.legend(loc="upper right", frameon=False)
+ax.text(0.03,0.9,'(b)',transform = ax.transAxes,fontsize=24)
 plt.minorticks_on()
 plt.gca().tick_params(axis="y", which="minor", left=False)
 plt.tight_layout()
 sns.despine()
 ax.autoscale_view()
+
+plt.savefig('../Figures/Figure1b.pdf',bbox_inches='tight')
