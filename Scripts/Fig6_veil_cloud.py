@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-A.L. Albright
 
 Figure 6. Plot environmental variables and radiative heating rates for a persistent 'veil cloud' 
 occurring on 24 January 2020
