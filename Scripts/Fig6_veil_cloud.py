@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+A.L. Albright
 
-plot environmental variables and radiative heating rates for a persistent 'veil cloud' 
+Figure 6. Plot environmental variables and radiative heating rates for a persistent 'veil cloud' 
 occurring on 24 January 2020
 
 """
@@ -55,6 +56,10 @@ def choose_HALO_circle(sondes):
     return sondes_circle
 
 
+# =============================================================================
+#          load environmental data
+# =============================================================================
+
 def get_env_data_one_day(fp_dropsondes, day_str):
     all_sondes = xr.open_dataset(fp_dropsondes).swap_dims({"sounding": "launch_time"})
     sondes_oneday = all_sondes.sel(launch_time=day_str)
@@ -67,10 +72,6 @@ def get_env_data_one_day(fp_dropsondes, day_str):
 
     nsondes_qc = len(sondes_circle["launch_time"])
     print(nsondes_qc, "sondes after quality control on " + day_str)
-
-    # =============================================================================
-    #          load environmental data
-    # =============================================================================
 
     kgtog = 1000
     CtoK = 273.15
@@ -116,10 +117,7 @@ def get_rad_data_one_day(fp_rad_profiles, day_str):
     # only choose HALO sondes
     profiles_oneday = all_rad_profiles.sel(launch_time=day_str)
     HALO_profiles = profiles_oneday.where(profiles_oneday.platform == "HALO", drop=True)
-
-    # =============================================================================
-    #          LOAD data
-    # =============================================================================
+    
     q_rad = HALO_profiles["q_rad"]
     q_rad_lw = HALO_profiles["q_rad_lw"]
     q_rad_sw = HALO_profiles["q_rad_sw"]
@@ -143,6 +141,8 @@ def get_rad_data_one_day(fp_rad_profiles, day_str):
 # =============================================================================
 # load Joanne dropsondes
 # =============================================================================
+
+# REPLACE PATHS BELOW
 
 input_dir = "/Users/annaleaalbright/Dropbox/EUREC4A/Dropsondes/Data/"
 fp_dropsondes = os.path.join(
