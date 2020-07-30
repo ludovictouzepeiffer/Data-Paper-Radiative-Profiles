@@ -1,4 +1,5 @@
 .ipynb_checkpoints/
 Figures/
-output/
 .fuse*
+output/
+.gitignore
