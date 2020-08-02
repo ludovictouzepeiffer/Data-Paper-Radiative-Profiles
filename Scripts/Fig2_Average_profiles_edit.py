@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-
-"""
 
 import numpy as np
 from netCDF4 import Dataset, num2date # to work with NetCDF files
@@ -20,9 +17,7 @@ from metpy.units import units
 import seaborn as sns
 import pandas as pd
 
-matplotlib.rcParams.update({'font.size': 24})
 sns.set(context='notebook', style='whitegrid', palette='deep', font='sans-serif', font_scale=3.2, color_codes=True, rc=None)
-
 
 #Directory where sondes are stored
 #dir_profile = "/media/ludo/DATA/google-drive/Thèse/EUREC4a/github/Input/Products/"
